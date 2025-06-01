@@ -1,0 +1,59 @@
+\documentclass{article}
+\usepackage{graphicx} % Required for inserting images
+
+\title{Scheduling Formulation}
+% \author{Harrison Wills}
+% \date{May 2025}
+
+\begin{document}
+
+\maketitle
+\newpage
+
+\section*{Sets}
+$D$ set of Days \\
+$T$ set of time slots \\
+$S$ set of shifts (for one day) \\
+$P$ set of people
+
+\section*{Data}
+$hours_p$ Maximum hours person $p \in P$ can work \\
+$available_{dtp}$ 1 if person $p \in P$ is available to work at time $t \in T$ on day $d \in D$, 0 otherwise \\
+$consecutive_p$ Maximum consecutive hours person $p \in P$ can work \\
+$length_s$ Length of shift $s \in S$ \\
+$contains_{ts}$ 1  if time slot $t \in T$ is contained in shift $s \in S$, 0 otherwise \\
+$fixed_{psd}$ 1 if person $p \in P$ is fixed in shift $s \in S$ on day $d \in D$, 0 otherwise \\
+$w_1$ weighting of days coming in \\
+$w_2$ weighting of shifts worked \\
+
+\section*{Variables}
+$X_{psd}$ 1 if person $p \in P$ takes shift $s \in S$ on day $d \in D$ \\
+$Y_{pd}$ 1 if person $p \in P$ works on day $d \in D$
+
+\section*{Objective}
+Minimize 
+$$w_1 \cdot \sum_{p \in P} \sum_{d \in D} Y_{pd} + w_2 \cdot \sum_{s \in S} \sum_{p \in P} \sum_{d \in D} X_{psd} $$ %Ideally you want to include tutors having similar average hours here but i dont know how (this is fine for a small scale problem like this though)
+
+\section*{Constraints}
+Tutors don't work more than maximum hours
+$$\sum_{d \in D} \sum_{s in S} length_s \cdot X_{psd} \leq hours_p \forall p \in P$$ \\
+
+All time slots are covered by exactly one person % not sure of this
+$$\sum_{p \in P} \sum_{s \in S} X_{psd} \cdot contains_{ts} = 1 \forall t \in T, d \in D$$ \\
+
+Only work shifts you have availability for % not sure of this
+$$X_{psd} \leq contains_{ts} \cdot available_{dtp} \forall p \in P, t \in T, s \in S, d \in D $$ \\
+
+Respect fixed shifts
+$$X_{psd} \geq fixed_{psd} \forall p \in P, s \in S, d \in D if $$
+
+Tutors don't work more than max consecutive
+$$ X_{psd} * length_{s} <= consecutive_{p} \forall p \in P, d \in D, s \in S$$
+
+Y variable
+$$Y_{pd} \geq \frac{\sum_{s \in S} X_{psd}}{|shifts|}  \forall d \in D, p \in P$$
+
+Availability
+$$X_{psd} * contains_{ts} \leq available_{dtp} \forall p \in P t \in T, d \in D, s \in S$$
+
+\end{document}
