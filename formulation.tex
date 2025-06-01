@@ -25,6 +25,7 @@ $contains_{ts}$ 1  if time slot $t \in T$ is contained in shift $s \in S$, 0 oth
 $fixed_{psd}$ 1 if person $p \in P$ is fixed in shift $s \in S$ on day $d \in D$, 0 otherwise \\
 $w_1$ weighting of days coming in \\
 $w_2$ weighting of shifts worked \\
+$w_3$ weighting of hours unallocated \\
 
 \section*{Variables}
 $X_{psd}$ 1 if person $p \in P$ takes shift $s \in S$ on day $d \in D$ \\
@@ -32,14 +33,14 @@ $Y_{pd}$ 1 if person $p \in P$ works on day $d \in D$
 
 \section*{Objective}
 Minimize 
-$$w_1 \cdot \sum_{p \in P} \sum_{d \in D} Y_{pd} + w_2 \cdot \sum_{s \in S} \sum_{p \in P} \sum_{d \in D} X_{psd} $$ %Ideally you want to include tutors having similar average hours here but i dont know how (this is fine for a small scale problem like this though)
+$$w_1 \cdot \sum_{p \in P} \sum_{d \in D} Y_{pd} + w_2 \cdot \sum_{s \in S} \sum_{p \in P} \sum_{d \in D} X_{psd} - w_3 \cdot \sum_{s \in S} \sum_{p \in P} \sum_{d \in D} X_{psd} * length_{s}$$ %Ideally you want to include tutors having similar average hours here but i dont know how (this is fine for a small scale problem like this though)
 
 \section*{Constraints}
 Tutors don't work more than maximum hours
 $$\sum_{d \in D} \sum_{s in S} length_s \cdot X_{psd} \leq hours_p \forall p \in P$$ \\
 
 All time slots are covered by exactly one person % not sure of this
-$$\sum_{p \in P} \sum_{s \in S} X_{psd} \cdot contains_{ts} = 1 \forall t \in T, d \in D$$ \\
+$$\sum_{p \in P} \sum_{s \in S} X_{psd} \cdot contains_{ts} \leq 1 \forall t \in T, d \in D$$ \\
 
 Only work shifts you have availability for % not sure of this
 $$X_{psd} \leq contains_{ts} \cdot available_{dtp} \forall p \in P, t \in T, s \in S, d \in D $$ \\

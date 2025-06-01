@@ -73,8 +73,11 @@ fixed_shifts = {
     ("Erin", "Friday"): [(15, 17)],
 }
 
+available_hours = len(times) * days 
+
 num_days_weight = 1
 num_shifts_weight = 1
+hours_covered_weight = 10
 
 # Variables 
 model = gp.Model("Shift Scheduling")
@@ -84,7 +87,8 @@ Y = {(person, day): model.addVar(vtype=gp.GRB.BINARY) for person in people for d
 # Objective
 model.setObjective(
     gp.quicksum(Y[person, day] for person in people for day in days) * num_days_weight + \
-    gp.quicksum(X[person, shift, day] for person in people for shift in shifts for day in days) * num_shifts_weight,
+    gp.quicksum(X[person, shift, day] for person in people for shift in shifts for day in days) * num_shifts_weight - \
+    gp.quicksum(X[person, shift, day] * lengths[shift] for person in people for shift in shifts for day in days) * hours_covered_weight,
     gp.GRB.MINIMIZE)
 
 # Constraints
@@ -92,8 +96,8 @@ maxHours = {person: model.addConstr(
     gp.quicksum(X[person, shift, day] * lengths[shift] for shift in shifts for day in days) <= max_total[person])
     for person in people}
 
-allTimesCovered = {(time, day): model.addConstr(
-    gp.quicksum(X[person, shift, day] * contains[(shift, time)] for person in people for shift in shifts) == 1)
+noOverlap = {(time, day): model.addConstr(
+    gp.quicksum(X[person, shift, day] * contains[(shift, time)] for person in people for shift in shifts) <= 1)
     for time in times for day in days}
 
 respectAvailability = {(person, time, shift, day): model.addConstr(
@@ -107,8 +111,6 @@ maxConsecutive = {(person, day, shift): model.addConstr(
 daysWorked = {(person, day): model.addConstr(
     Y[person, day] >= gp.quicksum(X[person, shift, day] for shift in shifts) / len(shifts))
     for person in people for day in days}
-
-
 
 fixedShifts = {(person, shift, day): model.addConstr(
     X[person, shift, day] == 1) 
