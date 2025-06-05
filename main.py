@@ -5,6 +5,7 @@ import gurobipy as gp
 days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
 times = [9, 10, 11, 12, 13, 14, 15, 16]
 people = ["Harrison", "Dhanan", "Erin", "Ella"]
+# people = ["Harrison"]
 shifts = []
 
 for i, start_time in enumerate(times):
@@ -17,7 +18,7 @@ print("Shifts:", shifts)
 # Data
 availability = {
     ("Harrison", "Monday"): [1] * len(times),
-    ("Harrison", "Tuesday"): [1] * len(times),
+    ("Harrison", "Tuesday"): [1, 1, 1, 1, 1, 0, 0, 0],  
     ("Harrison", "Wednesday"): [1] * len(times),
     ("Harrison", "Thursday"): [1] * len(times),
     ("Harrison", "Friday"): [1] * len(times),
@@ -26,11 +27,11 @@ availability = {
     ("Dhanan", "Wednesday"): [1] * len(times),
     ("Dhanan", "Thursday"): [1] * len(times),
     ("Dhanan", "Friday"): [1] * len(times),
-    ("Erin", "Monday"): [1] * len(times),
-    ("Erin", "Tuesday"): [1] * len(times),
-    ("Erin", "Wednesday"): [1] * len(times),
+    ("Erin", "Monday"): [0, 0, 0, 0, 0, 0, 1, 1],
+    ("Erin", "Tuesday"): [1, 1, 0, 0, 0, 0, 1, 1],
+    ("Erin", "Wednesday"): [0, 0, 0, 0, 0, 0, 1, 1],
     ("Erin", "Thursday"): [1] * len(times),
-    ("Erin", "Friday"): [1] * len(times),
+    ("Erin", "Friday"): [0, 0, 0, 0, 0, 0, 1, 1],
     ("Ella", "Monday"): [1] * len(times),
     ("Ella", "Tuesday"): [1] * len(times),
     ("Ella", "Wednesday"): [1] * len(times),
@@ -39,16 +40,16 @@ availability = {
 }
 
 max_total = {
-    "Harrison": 11,
-    "Dhanan": 11,
-    "Erin": 11,
-    "Ella": 11
+    "Harrison": 10,
+    "Dhanan": 10,
+    "Erin": 10,
+    "Ella": 10
 }
 
 max_consecutive = {
     "Harrison": 4,
     "Dhanan": 8,
-    "Erin": 100,
+    "Erin": 8,
     "Ella": 8
 }
 
@@ -68,9 +69,9 @@ print("Contains:", contains)
 lengths = {shift: end_time - start_time for shift, (start_time, end_time) in zip(shifts, shifts)}
 
 fixed_shifts = {
-    ("Erin", "Tuesday"): [(15, 17)],
-    ("Erin", "Thursday"): [(13, 17), (9, 10)],
-    ("Erin", "Friday"): [(15, 17)],
+    # ("Erin", "Tuesday"): [(15, 17)],
+    # ("Erin", "Thursday"): [(13, 17), (9, 10)],
+    # ("Erin", "Friday"): [(15, 17)],
 }
 
 available_hours = len(times) * days 
@@ -116,6 +117,10 @@ fixedShifts = {(person, shift, day): model.addConstr(
     X[person, shift, day] == 1) 
     for person in people for day in days if (person, day) in fixed_shifts for shift in fixed_shifts[person, day]}
 
+noBackToBack = {(person, shift, other_shift, day): model.addConstr(
+    X[person, other_shift, day] + X[person, shift, day] <= 1)
+                for person in people for shift in shifts for other_shift in shifts if shift[0] ==  other_shift[1] for day in days}
+
 # Results
 model.optimize()
 if model.status == gp.GRB.OPTIMAL:
@@ -125,4 +130,3 @@ if model.status == gp.GRB.OPTIMAL:
             for shift in shifts:
                 if X[person, shift, day].X > 0.5:  # If the variable is 1
                     print(f"  {day}: {shift[0]}-{shift[1]}")
-                    

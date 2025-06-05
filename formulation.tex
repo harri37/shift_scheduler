@@ -57,4 +57,7 @@ $$Y_{pd} \geq \frac{\sum_{s \in S} X_{psd}}{|shifts|}  \forall d \in D, p \in P$
 Availability
 $$X_{psd} * contains_{ts} \leq available_{dtp} \forall p \in P t \in T, d \in D, s \in S$$
 
+No back-to-back shifts
+$$X_{psd} + X_{ps'd} \leq 1 \forall p, \in P, (s, s') \in \{(s, s') \in  S \times S | s_{start} = s'_{end}\}, d \in D$$ 
+
 \end{document}
