@@ -85,13 +85,6 @@ fixed_shifts = {
 
 available_hours = len(times) * days 
 
-num_days_weight = 2e2
-num_shifts_weight = 2e1
-hours_covered_weight = 2e6
-max_hours_weight = 2e5
-min_hours_weight = 2e4
-worthwhile_weight = 2e3
-
 WORTHWHILE_THRESHOLD = 4
 MAX_SHIFT_LENGTH = len(times)  
 
@@ -99,19 +92,33 @@ MAX_SHIFT_LENGTH = len(times)
 model = gp.Model("Shift Scheduling")
 X = {(person, shift, day): model.addVar(vtype=gp.GRB.BINARY) for person in people for shift in shifts for day in days}
 Y = {(person, day): model.addVar(vtype=gp.GRB.BINARY) for person in people for day in days}
-MAX_HOURS = model.addVar(vtype=gp.GRB.INTEGER)
-MIN_HOURS = model.addVar(vtype=gp.GRB.INTEGER)
+MAX_HOURS_DIFF = model.addVar(vtype=gp.GRB.INTEGER)
 W = {(person, day): model.addVar(vtype=gp.GRB.BINARY) for person in people for day in days}
 
-# Objective
-model.setObjective(
-    gp.quicksum(Y[person, day] for person in people for day in days) * num_days_weight + \
-    gp.quicksum(X[person, shift, day] for person in people for shift in shifts for day in days) * num_shifts_weight - \
-    gp.quicksum(X[person, shift, day] * lengths[shift] for person in people for shift in shifts for day in days) * hours_covered_weight + \
-    max_hours_weight * MAX_HOURS - \
-    min_hours_weight * MIN_HOURS - \
-    gp.quicksum(W[person, day] for person in people for day in days) * worthwhile_weight,
-    gp.GRB.MINIMIZE)
+# Multi-objective formulation with pure priority-based optimization
+# Priority 1: Maximize hours covered (most important) - use negative to maximize in minimization
+model.setObjectiveN(-gp.quicksum(X[person, shift, day] * lengths[shift] 
+                                for person in people for shift in shifts for day in days),
+                    index=0, priority=5, name="Hours Covered")
+
+# Priority 2: Minimize hours difference between people (fairness)
+model.setObjectiveN(MAX_HOURS_DIFF, 
+                    index=1, priority=4, name="Hours Difference")
+
+# Priority 3: Maximize worthwhile shifts - use negative to maximize in minimization
+model.setObjectiveN(-gp.quicksum(W[person, day] for person in people for day in days), 
+                    index=2, priority=3, name="Worthwhile Shifts")
+
+# Priority 4: Minimize days worked (fewer days is better)
+model.setObjectiveN(gp.quicksum(Y[person, day] for person in people for day in days), 
+                    index=3, priority=2, name="Days Worked")
+
+# Priority 5: Minimize total shifts (fewer shifts is better)
+model.setObjectiveN(gp.quicksum(X[person, shift, day] for person in people for shift in shifts for day in days),
+                    index=4, priority=1, name="Total Shifts")
+
+# Set model to minimize
+model.ModelSense = gp.GRB.MINIMIZE
 
 days_in = {
     "Harrison": ["Wednesday", "Thursday", "Friday"],
@@ -149,13 +156,10 @@ noBackToBack = {(person, shift, other_shift, day): model.addConstr(
     X[person, other_shift, day] + X[person, shift, day] <= 1)
                 for person in people for shift in shifts for other_shift in shifts if shift[0] ==  other_shift[1] for day in days}
 
-maxHours = {person: model.addConstr(
-    MAX_HOURS >= gp.quicksum(X[person, shift, day] * lengths[shift] for shift in shifts for day in days))
-    for person in people}
-
-minHours = {person: model.addConstr(
-    MIN_HOURS <= gp.quicksum(X[person, shift, day] * lengths[shift] for shift in shifts for day in days))
-    for person in people}
+maxHoursDiff = {(person_1, person_2): model.addConstr(
+    MAX_HOURS_DIFF >= gp.quicksum(X[person_1, shift, day] * lengths[shift] for shift in shifts for day in days) - \
+        gp.quicksum(X[person_2, shift, day] * lengths[shift] for shift in shifts for day in days))
+    for person_1 in people for person_2 in people if person_1 != person_2}
 
 daysAlreadyIn = {(person, day): model.addConstr(
     W[person, day] == 1)
@@ -164,7 +168,6 @@ daysAlreadyIn = {(person, day): model.addConstr(
 worthwhileShifts = {(person, day): model.addConstr(
     W[person, day] >= (gp.quicksum(X[person, shift, day] * lengths[shift] for shift in shifts) - WORTHWHILE_THRESHOLD) / MAX_SHIFT_LENGTH)
     for person in people for day in days}
-
 
 def visualize_timetable():
     """
